@@ -5,7 +5,7 @@ namespace BackendPBPI.DTO.AuthDTO
     public class AuthDTO
     {
             // Register Request DTO
-    public class RegisterRequestDto
+    public class RegisterRequest
         {
             [Required(ErrorMessage = "Username wajib diisi")]
             [StringLength(50, MinimumLength = 3, ErrorMessage = "Username harus antara 3-50 karakter")]
