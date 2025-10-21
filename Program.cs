@@ -2,12 +2,16 @@ using System.Text;
 using BackendPBPI.Configuration;
 using BackendPBPI.Data;
 using BackendPBPI.Interface.IRepository.Auth;
+using BackendPBPI.Interface.IRepository.News;
 using BackendPBPI.Interface.IRepository.Role;
 using BackendPBPI.Interface.IService.Auth;
+using BackendPBPI.Interface.IService.News;
 using BackendPBPI.Interface.IService.Role;
-using BackendPBPI.Models.UserModel;
+using BackendPBPI.Models.UserModels;
 using BackendPBPI.Repositories;
+using BackendPBPI.Repository.News;
 using BackendPBPI.Repository.Role;
+using BackendPBPI.Service.News;
 using BackendPBPI.Service.Role;
 using BackendPBPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,6 +23,8 @@ using Serilog;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.UseUrls("http://0.0.0.0:5000");
 
 
 // Configure Serilog
@@ -139,6 +145,10 @@ try
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IRoleService, RoleService>();
 
+
+    builder.Services.AddScoped<INewsRepository, NewsRepository>();
+    builder.Services.AddScoped<INewsService, NewsService>();
+
     // Configure CORS (optional - sesuaikan dengan kebutuhan)
     builder.Services.AddCors(options =>
     {
@@ -159,7 +169,7 @@ try
         app.UseSwaggerUI();
     }
 
-    app.UseHttpsRedirection();
+    //app.UseHttpsRedirection();
 
     app.UseCors("AllowAll");
 

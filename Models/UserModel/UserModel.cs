@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using BackendPBPI.Models.RoleModel;
 
-namespace BackendPBPI.Models.UserModel
+namespace BackendPBPI.Models.UserModels
 {
     public class UserModel
     {

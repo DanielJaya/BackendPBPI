@@ -8,7 +8,7 @@ namespace BackendPBPI.Controllers.Role
 {
 
         [ApiController]
-        [Route("api/v1")]
+        [Route("api/v1/[controller]")]
         [Authorize] // Semua endpoint butuh authentication
         public class RoleController : ControllerBase
         {

@@ -18,7 +18,7 @@ namespace BackendPBPI.Models.RoleModel
 
         // Navigation properties
         [ForeignKey("UserID")]
-        public virtual UserModel.UserModel User { get; set; }
+        public virtual UserModels.UserModel User { get; set; }
 
         [ForeignKey("RoleID")]
         public virtual RoleModel Role { get; set; }

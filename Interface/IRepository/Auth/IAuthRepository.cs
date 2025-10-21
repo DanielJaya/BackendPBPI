@@ -1,5 +1,5 @@
 ﻿using BackendPBPI.Models.AuthModel;
-using BackendPBPI.Models.UserModel;
+using BackendPBPI.Models.UserModels;
 
 namespace BackendPBPI.Interface.IRepository.Auth
 {

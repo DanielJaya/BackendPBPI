@@ -25,6 +25,6 @@ namespace BackendPBPI.Models.AuthModel
         public DateTime? RevokedAt { get; set; }
 
         [ForeignKey("UserId")]
-        public virtual UserModel.UserModel User { get; set; }
+        public virtual UserModels.UserModel User { get; set; }
     }
 }

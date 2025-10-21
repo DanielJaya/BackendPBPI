@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using BackendPBPI.Data;
-using BackendPBPI.Models.UserModel;
+using BackendPBPI.Models.UserModels;
 using BackendPBPI.Interface.IRepository.Auth;
 using BackendPBPI.Models.AuthModel;
 

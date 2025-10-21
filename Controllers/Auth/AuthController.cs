@@ -7,7 +7,7 @@ using static BackendPBPI.DTO.AuthDTO.AuthDTO;
 namespace BackendPBPI.Controllers
 {
     [ApiController]
-    [Route("api/v1")]
+    [Route("api/v1/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;

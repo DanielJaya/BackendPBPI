@@ -1,6 +1,7 @@
 ﻿using BackendPBPI.Models.AuthModel;
+using BackendPBPI.Models.NewsModel;
 using BackendPBPI.Models.RoleModel;
-using BackendPBPI.Models.UserModel;
+using BackendPBPI.Models.UserModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,9 @@ namespace BackendPBPI.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<RoleModel> Roles { get; set; }
         public DbSet<RoleUserModel> RoleUsers { get; set; }
+        public DbSet<NewsHDRModel> NewsHDR { get; set; }
+        public DbSet<NewsDTLModel> NewsDTL { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -73,7 +77,21 @@ namespace BackendPBPI.Data
                       .WithMany(r => r.RoleUsers)
                       .HasForeignKey(e => e.RoleID)
                       .OnDelete(DeleteBehavior.Cascade);
+
             });
+
+            // Konfigurasi News relationships
+            modelBuilder.Entity<NewsHDRModel>()
+                .HasOne(n => n.User)
+                .WithMany()
+                .HasForeignKey(n => n.UserID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<NewsDTLModel>()
+                .HasOne(d => d.NewsHeader)
+                .WithMany(h => h.NewsDetails)
+                .HasForeignKey(d => d.NewsHDRID)
+                .OnDelete(DeleteBehavior.Cascade);
 
         }
     }

@@ -59,7 +59,148 @@ namespace BackendPBPI.Migrations
                     b.ToTable("RefreshTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BackendPBPI.Models.UserModel.UserModel", b =>
+            modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsDTLModel", b =>
+                {
+                    b.Property<int>("NewsDTLID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NewsDTLID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NewsContent")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("NewsHDRID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NewsUrl")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("NewsDTLID");
+
+                    b.HasIndex("NewsHDRID");
+
+                    b.ToTable("NewsDTL");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsHDRModel", b =>
+                {
+                    b.Property<int>("NewsID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NewsID"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NewsSubTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NewsTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SequenceNo")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
+                    b.HasKey("NewsID");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("NewsHDR");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.RoleModel.RoleModel", b =>
+                {
+                    b.Property<int>("RoleID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RoleName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RoleID");
+
+                    b.HasIndex("RoleName")
+                        .IsUnique();
+
+                    b.ToTable("Roles", (string)null);
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.RoleModel.RoleUserModel", b =>
+                {
+                    b.Property<int>("RoleUserID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleUserID"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RoleID")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserID")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UserModelUserID")
+                        .HasColumnType("int");
+
+                    b.HasKey("RoleUserID");
+
+                    b.HasIndex("RoleID");
+
+                    b.HasIndex("UserModelUserID");
+
+                    b.HasIndex("UserID", "RoleID")
+                        .IsUnique();
+
+                    b.ToTable("RoleUsers", (string)null);
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.UserModels.UserModel", b =>
                 {
                     b.Property<int>("UserID")
                         .ValueGeneratedOnAdd()
@@ -304,11 +445,56 @@ namespace BackendPBPI.Migrations
 
             modelBuilder.Entity("BackendPBPI.Models.AuthModel.RefreshToken", b =>
                 {
-                    b.HasOne("BackendPBPI.Models.UserModel.UserModel", "User")
+                    b.HasOne("BackendPBPI.Models.UserModels.UserModel", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsDTLModel", b =>
+                {
+                    b.HasOne("BackendPBPI.Models.NewsModel.NewsHDRModel", "NewsHeader")
+                        .WithMany("NewsDetails")
+                        .HasForeignKey("NewsHDRID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("NewsHeader");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsHDRModel", b =>
+                {
+                    b.HasOne("BackendPBPI.Models.UserModels.UserModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.RoleModel.RoleUserModel", b =>
+                {
+                    b.HasOne("BackendPBPI.Models.RoleModel.RoleModel", "Role")
+                        .WithMany("RoleUsers")
+                        .HasForeignKey("RoleID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BackendPBPI.Models.UserModels.UserModel", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BackendPBPI.Models.UserModels.UserModel", null)
+                        .WithMany("RoleUsers")
+                        .HasForeignKey("UserModelUserID");
+
+                    b.Navigation("Role");
 
                     b.Navigation("User");
                 });
@@ -362,6 +548,21 @@ namespace BackendPBPI.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsHDRModel", b =>
+                {
+                    b.Navigation("NewsDetails");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.RoleModel.RoleModel", b =>
+                {
+                    b.Navigation("RoleUsers");
+                });
+
+            modelBuilder.Entity("BackendPBPI.Models.UserModels.UserModel", b =>
+                {
+                    b.Navigation("RoleUsers");
                 });
 #pragma warning restore 612, 618
         }

@@ -7,28 +7,32 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using BackendPBPI.Configuration;
-using BackendPBPI.Models.UserModel;
 using BackendPBPI.Interface.IRepository.Auth;
 using BackendPBPI.Interface.IService.Auth;
+using BackendPBPI.Interface.IRepository.Role;
 using BackendPBPI.Models.AuthModel;
 using static BackendPBPI.DTO.AuthDTO.AuthDTO;
+using BackendPBPI.Models.UserModels;
 
 namespace BackendPBPI.Services
 {
     public class AuthService : IAuthService
     {
         private readonly IAuthRepository _authRepository;
+        private readonly IRoleRepository _roleRepository;
         private readonly IPasswordHasher<UserModel> _passwordHasher;
         private readonly JwtSettings _jwtSettings;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IAuthRepository authRepository,
+            IRoleRepository roleRepository,
             IPasswordHasher<UserModel> passwordHasher,
             IOptions<JwtSettings> jwtSettings,
             ILogger<AuthService> logger)
         {
             _authRepository = authRepository;
+            _roleRepository = roleRepository;
             _passwordHasher = passwordHasher;
             _jwtSettings = jwtSettings.Value;
             _logger = logger;
@@ -70,8 +74,23 @@ namespace BackendPBPI.Services
                 var createdUser = await _authRepository.CreateUserAsync(user);
                 _logger.LogInformation("User berhasil dibuat dengan ID: {UserId}", createdUser.UserID);
 
+                // Assign default role "User" (RoleID = 2) untuk user baru
+                var defaultRole = await _roleRepository.GetRoleByNameAsync("User");
+                if (defaultRole != null)
+                {
+                    await _roleRepository.AssignRoleToUserAsync(createdUser.UserID, defaultRole.RoleID);
+                    _logger.LogInformation("Role 'User' berhasil di-assign ke user baru: {Username}", createdUser.UserName);
+                }
+                else
+                {
+                    _logger.LogWarning("Default role 'User' tidak ditemukan di database");
+                }
+
+                // Get user roles
+                var userRoleIds = await _roleRepository.GetUserRoleIdsAsync(createdUser.UserID);
+
                 // Generate tokens
-                var accessToken = GenerateAccessToken(createdUser);
+                var accessToken = GenerateAccessToken(createdUser, userRoleIds);
                 var refreshToken = GenerateRefreshToken();
 
                 // Save refresh token
@@ -82,7 +101,7 @@ namespace BackendPBPI.Services
                 return new AuthResponseDto
                 {
                     Username = createdUser.UserName,
-                    Role = new List<int> { 6 }, // Default role
+                    Role = userRoleIds,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken
                 };
@@ -132,8 +151,12 @@ namespace BackendPBPI.Services
                     throw new Exception("Username/Email atau password salah");
                 }
 
-                // Generate tokens
-                var accessToken = GenerateAccessToken(user);
+                // Get user roles dari database
+                var userRoleIds = await _roleRepository.GetUserRoleIdsAsync(user.UserID);
+                _logger.LogInformation("User {Username} memiliki {Count} role(s)", user.UserName, userRoleIds.Count);
+
+                // Generate tokens dengan role yang sebenarnya
+                var accessToken = GenerateAccessToken(user, userRoleIds);
                 var refreshToken = GenerateRefreshToken();
 
                 // Revoke old refresh tokens (optional - untuk keamanan)
@@ -150,7 +173,7 @@ namespace BackendPBPI.Services
                 return new AuthResponseDto
                 {
                     Username = user.UserName,
-                    Role = new List<int> { 6 },
+                    Role = userRoleIds,
                     AccessToken = accessToken,
                     RefreshToken = refreshToken
                 };
@@ -191,8 +214,11 @@ namespace BackendPBPI.Services
                     throw new Exception("User tidak ditemukan");
                 }
 
-                // Generate new tokens
-                var newAccessToken = GenerateAccessToken(user);
+                // Get user roles dari database
+                var userRoleIds = await _roleRepository.GetUserRoleIdsAsync(user.UserID);
+
+                // Generate new tokens dengan role yang sebenarnya
+                var newAccessToken = GenerateAccessToken(user, userRoleIds);
                 var newRefreshToken = GenerateRefreshToken();
 
                 // Revoke old refresh token
@@ -206,7 +232,7 @@ namespace BackendPBPI.Services
                 return new AuthResponseDto
                 {
                     Username = user.UserName,
-                    Role = new List<int> { 6 },
+                    Role = userRoleIds,
                     AccessToken = newAccessToken,
                     RefreshToken = newRefreshToken
                 };
@@ -233,11 +259,11 @@ namespace BackendPBPI.Services
             }
         }
 
-        private string GenerateAccessToken(UserModel user)
+        private string GenerateAccessToken(UserModel user, List<int> roleIds)
         {
             _logger.LogInformation("Generating access token untuk user ID: {UserId}", user.UserID);
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.UserID.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
@@ -246,6 +272,12 @@ namespace BackendPBPI.Services
                 new Claim("userId", user.UserID.ToString()),
                 new Claim("username", user.UserName)
             };
+
+            // Add role claims
+            foreach (var roleId in roleIds)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, roleId.ToString()));
+            }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
