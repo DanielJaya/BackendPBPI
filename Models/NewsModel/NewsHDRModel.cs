@@ -23,7 +23,15 @@ namespace BackendPBPI.Models.NewsModel
 
         public int SequenceNo { get; set; }
 
-        public bool Status { get; set; } = true;
+        public bool Status { get; set; } = true; 
+        [Column(TypeName = "varbinary(max)")]
+        public byte[] NewsPic { get; set; }
+
+        [MaxLength(100)]
+        public string NewsPicFileName { get; set; }
+
+        [MaxLength(50)]
+        public string NewsPicContentType { get; set; }
 
         public DateTime CreatedAt { get; set; }
 
@@ -35,6 +43,6 @@ namespace BackendPBPI.Models.NewsModel
         [ForeignKey("UserID")]
         public virtual UserModel User { get; set; }
 
-        public virtual ICollection<NewsDTLModel> NewsDetails { get; set; }
+        public virtual NewsDTLModel NewsDetail { get; set; }
     }
 }

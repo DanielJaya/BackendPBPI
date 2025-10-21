@@ -1,8 +1,9 @@
 ﻿using BackendPBPI.DTO.NewsDTO;
+using BackendPBPI.Helper;
 using BackendPBPI.Interface.IService.News;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using System.Text.Json;
 
 namespace BackendPBPI.Controllers.News
 {
@@ -31,22 +32,40 @@ namespace BackendPBPI.Controllers.News
             return userId;
         }
 
-        // Helper method untuk cek apakah user adalah admin
-        private bool IsAdmin()
-        {
-            var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-            return roles.Contains("1"); // RoleID 1 = Admin
-        }
-
         /// <summary>
-        /// Create News (Admin Only)
+        /// Create News dengan Image (Admin Only - Wajib Upload Gambar)
         /// </summary>
         [HttpPost]
         [Authorize(Roles = "1")] // Hanya Admin (RoleID = 1)
-        public async Task<IActionResult> CreateNews([FromBody] CreateNewsRequestDto request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> CreateNews([FromForm] IFormFile newsPic, [FromForm] string newsData)
         {
             try
             {
+                // Validasi gambar wajib diupload
+                if (newsPic == null || newsPic.Length == 0)
+                {
+                    return BadRequest(new { success = false, message = "Gambar wajib diupload saat membuat news" });
+                }
+
+                // Validasi gambar
+                var (isValid, errorMessage) = ImageHelper.ValidateImage(newsPic);
+                if (!isValid)
+                {
+                    return BadRequest(new { success = false, message = errorMessage });
+                }
+
+                // Parse JSON data dari form
+                var request = JsonSerializer.Deserialize<CreateNewsRequestDto>(newsData, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (request == null)
+                {
+                    return BadRequest(new { success = false, message = "Data news tidak valid" });
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
@@ -55,7 +74,11 @@ namespace BackendPBPI.Controllers.News
                 var userId = GetUserIdFromToken();
                 _logger.LogInformation("Admin {UserId} membuat news baru", userId);
 
-                var result = await _newsService.CreateNewsAsync(userId, request);
+                // Convert ke byte array
+                var imageBytes = await ImageHelper.ConvertToByteArrayAsync(newsPic);
+
+                // Create news dengan gambar
+                var result = await _newsService.CreateNewsAsync(userId, request, imageBytes, newsPic.FileName, newsPic.ContentType);
 
                 return CreatedAtAction(nameof(GetNewsById), new { id = result.NewsID }, new
                 {
@@ -114,7 +137,9 @@ namespace BackendPBPI.Controllers.News
             try
             {
                 // Hanya admin yang bisa lihat inactive news
-                var canSeeInactive = IsAdmin() && includeInactive;
+                var roles = User.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+                var isAdmin = roles.Contains("1"); // RoleID 1 = Admin
+                var canSeeInactive = isAdmin && includeInactive;
 
                 var result = await _newsService.GetAllNewsAsync(canSeeInactive);
 
@@ -137,51 +162,58 @@ namespace BackendPBPI.Controllers.News
         }
 
         /// <summary>
-        /// Get My News (Admin Only)
-        /// </summary>
-        [HttpGet("my-news")]
-        [Authorize(Roles = "1")] // Hanya Admin
-        public async Task<IActionResult> GetMyNews()
-        {
-            try
-            {
-                var userId = GetUserIdFromToken();
-                var result = await _newsService.GetMyNewsAsync(userId);
-
-                return Ok(new
-                {
-                    success = true,
-                    message = "News berhasil diambil",
-                    data = result
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saat get my news");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    message = ex.Message
-                });
-            }
-        }
-
-        /// <summary>
-        /// Update News (Admin Only - Owner)
+        /// Update News (Admin Only - Support Update Gambar)
+        /// Hanya update field yang berubah
         /// </summary>
         [HttpPut("{id}")]
         [Authorize(Roles = "1")] // Hanya Admin
-        public async Task<IActionResult> UpdateNews(int id, [FromBody] UpdateNewsRequestDto request)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateNews(int id, [FromForm] IFormFile? newsPic, [FromForm] string newsData)
         {
             try
             {
+                // Parse JSON data dari form
+                var request = JsonSerializer.Deserialize<UpdateNewsRequestDto>(newsData, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (request == null)
+                {
+                    return BadRequest(new { success = false, message = "Data news tidak valid" });
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
 
-                var userId = GetUserIdFromToken();
-                var result = await _newsService.UpdateNewsAsync(id, userId, request);
+                _logger.LogInformation("Admin mengupdate news ID: {NewsID}", id);
+
+                byte[]? imageBytes = null;
+                string? fileName = null;
+                string? contentType = null;
+
+                // Jika ada upload gambar baru
+                if (newsPic != null && newsPic.Length > 0)
+                {
+                    // Validasi gambar
+                    var (isValid, errorMessage) = ImageHelper.ValidateImage(newsPic);
+                    if (!isValid)
+                    {
+                        return BadRequest(new { success = false, message = errorMessage });
+                    }
+
+                    // Convert ke byte array
+                    imageBytes = await ImageHelper.ConvertToByteArrayAsync(newsPic);
+                    fileName = newsPic.FileName;
+                    contentType = newsPic.ContentType;
+
+                    _logger.LogInformation("Gambar baru akan diupdate untuk news ID: {NewsID}", id);
+                }
+
+                // Update news (dengan atau tanpa gambar baru)
+                var result = await _newsService.UpdateNewsAsync(id, request, imageBytes, fileName, contentType);
 
                 return Ok(new
                 {
@@ -189,10 +221,6 @@ namespace BackendPBPI.Controllers.News
                     message = "News berhasil diupdate",
                     data = result
                 });
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {
@@ -206,7 +234,8 @@ namespace BackendPBPI.Controllers.News
         }
 
         /// <summary>
-        /// Delete News (Admin Only - Owner)
+        /// Delete News (Admin Only)
+        /// Admin bisa delete semua news tanpa cek ownership
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize(Roles = "1")] // Hanya Admin
@@ -214,18 +243,15 @@ namespace BackendPBPI.Controllers.News
         {
             try
             {
-                var userId = GetUserIdFromToken();
-                var result = await _newsService.DeleteNewsAsync(id, userId);
+                _logger.LogInformation("Admin menghapus news ID: {NewsID}", id);
+
+                var result = await _newsService.DeleteNewsAsync(id);
 
                 return Ok(new
                 {
                     success = true,
                     message = "News berhasil dihapus"
                 });
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {

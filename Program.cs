@@ -39,8 +39,6 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-try
-{
     Log.Information("Starting web application");
 
     // Add services to the container
@@ -181,12 +179,3 @@ try
     Log.Information("Application started successfully");
 
     app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application terminated unexpectedly");
-}
-finally
-{
-    Log.CloseAndFlush();
-}

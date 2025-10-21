@@ -4,11 +4,17 @@ namespace BackendPBPI.Interface.IService.News
 {
     public interface INewsService
     {
-        Task<NewsResponseDto> CreateNewsAsync(int userId, CreateNewsRequestDto request);
+        // Create News (Wajib dengan gambar)
+        Task<NewsResponseDto> CreateNewsAsync(int userId, CreateNewsRequestDto request, byte[] imageBytes, string fileName, string contentType);
+
+        // Get Operations
         Task<NewsResponseDto> GetNewsByIdAsync(int newsId);
         Task<List<NewsListResponseDto>> GetAllNewsAsync(bool includeInactive = false);
-        Task<List<NewsListResponseDto>> GetMyNewsAsync(int userId);
-        Task<NewsResponseDto> UpdateNewsAsync(int newsId, int userId, UpdateNewsRequestDto request);
-        Task<bool> DeleteNewsAsync(int newsId, int userId);
+
+        // Update News (Support update gambar)
+        Task<NewsResponseDto> UpdateNewsAsync(int newsId, UpdateNewsRequestDto request, byte[]? imageBytes = null, string? fileName = null, string? contentType = null);
+
+        // Delete News
+        Task<bool> DeleteNewsAsync(int newsId);
     }
 }

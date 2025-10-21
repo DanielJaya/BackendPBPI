@@ -4,6 +4,7 @@ using BackendPBPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BackendPBPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251021135458_AddNewColumnNewsPicAsByte")]
+    partial class AddNewColumnNewsPicAsByte
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -90,8 +93,7 @@ namespace BackendPBPI.Migrations
 
                     b.HasKey("NewsDTLID");
 
-                    b.HasIndex("NewsHDRID")
-                        .IsUnique();
+                    b.HasIndex("NewsHDRID");
 
                     b.ToTable("NewsDTL");
                 });
@@ -472,8 +474,8 @@ namespace BackendPBPI.Migrations
             modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsDTLModel", b =>
                 {
                     b.HasOne("BackendPBPI.Models.NewsModel.NewsHDRModel", "NewsHeader")
-                        .WithOne("NewsDetail")
-                        .HasForeignKey("BackendPBPI.Models.NewsModel.NewsDTLModel", "NewsHDRID")
+                        .WithMany("NewsDetails")
+                        .HasForeignKey("NewsHDRID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -485,7 +487,7 @@ namespace BackendPBPI.Migrations
                     b.HasOne("BackendPBPI.Models.UserModels.UserModel", "User")
                         .WithMany()
                         .HasForeignKey("UserID")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -567,8 +569,7 @@ namespace BackendPBPI.Migrations
 
             modelBuilder.Entity("BackendPBPI.Models.NewsModel.NewsHDRModel", b =>
                 {
-                    b.Navigation("NewsDetail")
-                        .IsRequired();
+                    b.Navigation("NewsDetails");
                 });
 
             modelBuilder.Entity("BackendPBPI.Models.RoleModel.RoleModel", b =>

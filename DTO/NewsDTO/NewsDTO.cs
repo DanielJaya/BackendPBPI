@@ -19,8 +19,9 @@ namespace BackendPBPI.DTO.NewsDTO
 
         public bool Status { get; set; } = true;
 
-        [Required(ErrorMessage = "At least one news detail is required")]
-        public List<CreateNewsDTLDto> NewsDetails { get; set; }
+        // One-to-One: Hanya 1 detail
+        [Required(ErrorMessage = "News detail is required")]
+        public CreateNewsDTLDto NewsDetail { get; set; }
     }
 
     public class CreateNewsDTLDto
@@ -45,7 +46,9 @@ namespace BackendPBPI.DTO.NewsDTO
 
         public bool Status { get; set; }
 
-        public List<UpdateNewsDTLDto> NewsDetails { get; set; }
+        // One-to-One: Hanya 1 detail
+        [Required(ErrorMessage = "News detail is required")]
+        public UpdateNewsDTLDto NewsDetail { get; set; }
     }
 
     public class UpdateNewsDTLDto
@@ -72,9 +75,13 @@ namespace BackendPBPI.DTO.NewsDTO
         public string UserName { get; set; }
         public int SequenceNo { get; set; }
         public bool Status { get; set; }
+        public string NewsPicBase64 { get; set; } // Base64 untuk response
+        public string NewsPicContentType { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public List<NewsDTLResponseDto> NewsDetails { get; set; }
+
+        // One-to-One: Hanya 1 detail
+        public NewsDTLResponseDto NewsDetail { get; set; }
     }
 
     public class NewsDTLResponseDto
@@ -96,6 +103,6 @@ namespace BackendPBPI.DTO.NewsDTO
         public int SequenceNo { get; set; }
         public bool Status { get; set; }
         public DateTime CreatedAt { get; set; }
-        public int DetailsCount { get; set; }
+        public bool HasDetail { get; set; }
     }
 }

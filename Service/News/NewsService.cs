@@ -1,4 +1,5 @@
 ﻿using BackendPBPI.DTO.NewsDTO;
+using BackendPBPI.Helper;
 using BackendPBPI.Interface.IRepository.News;
 using BackendPBPI.Interface.IService.News;
 using BackendPBPI.Models.NewsModel;
@@ -16,16 +17,25 @@ namespace BackendPBPI.Service.News
             _logger = logger;
         }
 
-        public async Task<NewsResponseDto> CreateNewsAsync(int userId, CreateNewsRequestDto request)
+        /// <summary>
+        /// Create News (Wajib dengan gambar)
+        /// </summary>
+        public async Task<NewsResponseDto> CreateNewsAsync(int userId, CreateNewsRequestDto request, byte[] imageBytes, string fileName, string contentType)
         {
             try
             {
-                _logger.LogInformation("Memulai proses create news: {NewsTitle} oleh user: {UserId}", request.NewsTitle, userId);
+                _logger.LogInformation("Memulai proses create news dengan gambar: {NewsTitle}", request.NewsTitle);
 
-                // Validasi news details tidak kosong
-                if (request.NewsDetails == null || !request.NewsDetails.Any())
+                // Validasi news detail tidak null
+                if (request.NewsDetail == null)
                 {
-                    throw new Exception("News harus memiliki minimal 1 detail");
+                    throw new Exception("News harus memiliki detail");
+                }
+
+                // Validasi gambar tidak boleh kosong
+                if (imageBytes == null || imageBytes.Length == 0)
+                {
+                    throw new Exception("Gambar wajib diupload saat membuat news");
                 }
 
                 // Set sequence number jika tidak diisi
@@ -34,46 +44,45 @@ namespace BackendPBPI.Service.News
                     request.SequenceNo = await _newsRepository.GetNextSequenceNoAsync();
                 }
 
-                // Create news header
+                // Create news header dengan gambar
                 var newsHeader = new NewsHDRModel
                 {
                     NewsTitle = request.NewsTitle,
                     NewsSubTitle = request.NewsSubTitle,
                     UserID = userId,
                     SequenceNo = request.SequenceNo,
-                    Status = request.Status
+                    Status = request.Status,
+                    NewsPic = imageBytes,
+                    NewsPicFileName = fileName,
+                    NewsPicContentType = contentType
                 };
 
                 var createdNews = await _newsRepository.CreateNewsAsync(newsHeader);
                 _logger.LogInformation("News header berhasil dibuat dengan ID: {NewsID}", createdNews.NewsID);
 
-                // Create news details
-                var detailsList = new List<NewsDTLModel>();
-                foreach (var detailDto in request.NewsDetails)
+                // Create news detail (One-to-One)
+                var detail = new NewsDTLModel
                 {
-                    var detail = new NewsDTLModel
-                    {
-                        NewsHDRID = createdNews.NewsID,
-                        NewsContent = detailDto.NewsContent,
-                        NewsUrl = detailDto.NewsUrl
-                    };
+                    NewsHDRID = createdNews.NewsID,
+                    NewsContent = request.NewsDetail.NewsContent,
+                    NewsUrl = request.NewsDetail.NewsUrl
+                };
 
-                    var createdDetail = await _newsRepository.CreateNewsDetailAsync(detail);
-                    detailsList.Add(createdDetail);
-                }
+                await _newsRepository.CreateNewsDetailAsync(detail);
+                _logger.LogInformation("News detail berhasil dibuat untuk NewsID: {NewsID}", createdNews.NewsID);
 
-                _logger.LogInformation("News berhasil dibuat dengan {Count} detail(s)", detailsList.Count);
-
-                // Return response
                 return await GetNewsByIdAsync(createdNews.NewsID);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saat create news: {NewsTitle}", request.NewsTitle);
+                _logger.LogError(ex, "Error saat create news dengan gambar");
                 throw;
             }
         }
 
+        /// <summary>
+        /// Get News By ID
+        /// </summary>
         public async Task<NewsResponseDto> GetNewsByIdAsync(int newsId)
         {
             try
@@ -97,6 +106,9 @@ namespace BackendPBPI.Service.News
             }
         }
 
+        /// <summary>
+        /// Get All News
+        /// </summary>
         public async Task<List<NewsListResponseDto>> GetAllNewsAsync(bool includeInactive = false)
         {
             try
@@ -114,28 +126,15 @@ namespace BackendPBPI.Service.News
             }
         }
 
-        public async Task<List<NewsListResponseDto>> GetMyNewsAsync(int userId)
+        /// <summary>
+        /// Update News - Hanya update field yang berubah
+        /// Admin bisa update semua news tanpa cek ownership
+        /// </summary>
+        public async Task<NewsResponseDto> UpdateNewsAsync(int newsId, UpdateNewsRequestDto request, byte[]? imageBytes = null, string? fileName = null, string? contentType = null)
         {
             try
             {
-                _logger.LogInformation("Mengambil news untuk user: {UserId}", userId);
-
-                var newsList = await _newsRepository.GetNewsByUserIdAsync(userId);
-
-                return newsList.Select(n => MapToNewsListResponseDto(n)).ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saat mengambil news untuk user: {UserId}", userId);
-                throw;
-            }
-        }
-
-        public async Task<NewsResponseDto> UpdateNewsAsync(int newsId, int userId, UpdateNewsRequestDto request)
-        {
-            try
-            {
-                _logger.LogInformation("Update news ID: {NewsID} oleh user: {UserId}", newsId, userId);
+                _logger.LogInformation("Update news ID: {NewsID}", newsId);
 
                 var news = await _newsRepository.GetNewsByIdAsync(newsId);
 
@@ -145,67 +144,107 @@ namespace BackendPBPI.Service.News
                     throw new Exception($"News dengan ID {newsId} tidak ditemukan");
                 }
 
-                // Validasi ownership (hanya creator yang bisa update)
-                if (news.UserID != userId)
+                // Validasi news detail tidak null
+                if (request.NewsDetail == null)
                 {
-                    _logger.LogWarning("User {UserId} tidak memiliki akses untuk update news {NewsID}", userId, newsId);
-                    throw new Exception("Anda tidak memiliki akses untuk mengupdate news ini");
+                    throw new Exception("News harus memiliki detail");
                 }
 
-                // Update header
-                news.NewsTitle = request.NewsTitle;
-                news.NewsSubTitle = request.NewsSubTitle;
-                news.SequenceNo = request.SequenceNo;
-                news.Status = request.Status;
+                // Update header - Hanya field yang berubah
+                bool headerChanged = false;
 
-                await _newsRepository.UpdateNewsAsync(news);
-
-                // Update details
-                if (request.NewsDetails != null && request.NewsDetails.Any())
+                if (news.NewsTitle != request.NewsTitle)
                 {
-                    var existingDetails = await _newsRepository.GetNewsDetailsByHeaderIdAsync(newsId);
+                    news.NewsTitle = request.NewsTitle;
+                    headerChanged = true;
+                }
 
-                    // Update atau create details
-                    foreach (var detailDto in request.NewsDetails)
+                if (news.NewsSubTitle != request.NewsSubTitle)
+                {
+                    news.NewsSubTitle = request.NewsSubTitle;
+                    headerChanged = true;
+                }
+
+                if (news.SequenceNo != request.SequenceNo)
+                {
+                    news.SequenceNo = request.SequenceNo;
+                    headerChanged = true;
+                }
+
+                if (news.Status != request.Status)
+                {
+                    news.Status = request.Status;
+                    headerChanged = true;
+                }
+
+                // Update gambar jika ada gambar baru
+                if (imageBytes != null && imageBytes.Length > 0)
+                {
+                    news.NewsPic = imageBytes;
+                    news.NewsPicFileName = fileName;
+                    news.NewsPicContentType = contentType;
+                    headerChanged = true;
+                    _logger.LogInformation("Gambar news diupdate untuk NewsID: {NewsID}", newsId);
+                }
+
+                // Simpan perubahan header jika ada
+                if (headerChanged)
+                {
+                    await _newsRepository.UpdateNewsAsync(news);
+                    _logger.LogInformation("News header berhasil diupdate: {NewsID}", newsId);
+                }
+                else
+                {
+                    _logger.LogInformation("Tidak ada perubahan pada news header: {NewsID}", newsId);
+                }
+
+                // Update detail (One-to-One)
+                var existingDetail = await _newsRepository.GetNewsDetailByHeaderIdAsync(newsId);
+
+                if (request.NewsDetail.NewsDTLID.HasValue && existingDetail != null)
+                {
+                    // Update existing detail - Hanya field yang berubah
+                    bool detailChanged = false;
+
+                    if (existingDetail.NewsContent != request.NewsDetail.NewsContent)
                     {
-                        if (detailDto.NewsDTLID.HasValue)
-                        {
-                            // Update existing detail
-                            var existingDetail = existingDetails.FirstOrDefault(d => d.NewsDTLID == detailDto.NewsDTLID.Value);
-                            if (existingDetail != null)
-                            {
-                                existingDetail.NewsContent = detailDto.NewsContent;
-                                existingDetail.NewsUrl = detailDto.NewsUrl;
-                                await _newsRepository.UpdateNewsDetailAsync(existingDetail);
-                            }
-                        }
-                        else
-                        {
-                            // Create new detail
-                            var newDetail = new NewsDTLModel
-                            {
-                                NewsHDRID = newsId,
-                                NewsContent = detailDto.NewsContent,
-                                NewsUrl = detailDto.NewsUrl
-                            };
-                            await _newsRepository.CreateNewsDetailAsync(newDetail);
-                        }
+                        existingDetail.NewsContent = request.NewsDetail.NewsContent;
+                        detailChanged = true;
                     }
 
-                    // Delete details yang tidak ada di request
-                    var requestDetailIds = request.NewsDetails
-                        .Where(d => d.NewsDTLID.HasValue)
-                        .Select(d => d.NewsDTLID.Value)
-                        .ToList();
-
-                    var detailsToDelete = existingDetails
-                        .Where(d => !requestDetailIds.Contains(d.NewsDTLID))
-                        .ToList();
-
-                    foreach (var detail in detailsToDelete)
+                    if (existingDetail.NewsUrl != request.NewsDetail.NewsUrl)
                     {
-                        await _newsRepository.DeleteNewsDetailAsync(detail.NewsDTLID);
+                        existingDetail.NewsUrl = request.NewsDetail.NewsUrl;
+                        detailChanged = true;
                     }
+
+                    if (detailChanged)
+                    {
+                        await _newsRepository.UpdateNewsDetailAsync(existingDetail);
+                        _logger.LogInformation("News detail berhasil diupdate: {NewsDTLID}", existingDetail.NewsDTLID);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Tidak ada perubahan pada news detail: {NewsDTLID}", existingDetail.NewsDTLID);
+                    }
+                }
+                else
+                {
+                    // Create new detail jika belum ada atau ID tidak diberikan
+                    if (existingDetail != null)
+                    {
+                        // Hapus detail lama jika ada
+                        await _newsRepository.DeleteNewsDetailAsync(existingDetail.NewsDTLID);
+                    }
+
+                    var newDetail = new NewsDTLModel
+                    {
+                        NewsHDRID = newsId,
+                        NewsContent = request.NewsDetail.NewsContent,
+                        NewsUrl = request.NewsDetail.NewsUrl
+                    };
+                    await _newsRepository.CreateNewsDetailAsync(newDetail);
+                    _logger.LogInformation("News detail baru berhasil dibuat untuk NewsID: {NewsID}", newsId);
                 }
 
                 _logger.LogInformation("News berhasil diupdate: {NewsID}", newsId);
@@ -219,11 +258,14 @@ namespace BackendPBPI.Service.News
             }
         }
 
-        public async Task<bool> DeleteNewsAsync(int newsId, int userId)
+        /// <summary>
+        /// Delete News - Admin bisa delete tanpa cek ownership
+        /// </summary>
+        public async Task<bool> DeleteNewsAsync(int newsId)
         {
             try
             {
-                _logger.LogInformation("Delete news ID: {NewsID} oleh user: {UserId}", newsId, userId);
+                _logger.LogInformation("Delete news ID: {NewsID}", newsId);
 
                 var news = await _newsRepository.GetNewsByIdAsync(newsId);
 
@@ -231,13 +273,6 @@ namespace BackendPBPI.Service.News
                 {
                     _logger.LogWarning("News tidak ditemukan: {NewsID}", newsId);
                     throw new Exception($"News dengan ID {newsId} tidak ditemukan");
-                }
-
-                // Validasi ownership (hanya creator yang bisa delete)
-                if (news.UserID != userId)
-                {
-                    _logger.LogWarning("User {UserId} tidak memiliki akses untuk delete news {NewsID}", userId, newsId);
-                    throw new Exception("Anda tidak memiliki akses untuk menghapus news ini");
                 }
 
                 var result = await _newsRepository.DeleteNewsAsync(newsId);
@@ -267,17 +302,19 @@ namespace BackendPBPI.Service.News
                 UserName = news.User?.UserName ?? "Unknown",
                 SequenceNo = news.SequenceNo,
                 Status = news.Status,
+                NewsPicBase64 = news.NewsPic != null ? ImageHelper.ConvertToBase64(news.NewsPic) : null,
+                NewsPicContentType = news.NewsPicContentType,
                 CreatedAt = news.CreatedAt,
                 UpdatedAt = news.UpdatedAt,
-                NewsDetails = news.NewsDetails?.Select(d => new NewsDTLResponseDto
+                NewsDetail = news.NewsDetail != null ? new NewsDTLResponseDto
                 {
-                    NewsDTLID = d.NewsDTLID,
-                    NewsHDRID = d.NewsHDRID,
-                    NewsContent = d.NewsContent,
-                    NewsUrl = d.NewsUrl,
-                    CreatedAt = d.CreatedAt,
-                    UpdatedAt = d.UpdatedAt
-                }).ToList() ?? new List<NewsDTLResponseDto>()
+                    NewsDTLID = news.NewsDetail.NewsDTLID,
+                    NewsHDRID = news.NewsDetail.NewsHDRID,
+                    NewsContent = news.NewsDetail.NewsContent,
+                    NewsUrl = news.NewsDetail.NewsUrl,
+                    CreatedAt = news.NewsDetail.CreatedAt,
+                    UpdatedAt = news.NewsDetail.UpdatedAt
+                } : null
             };
         }
 
@@ -292,7 +329,7 @@ namespace BackendPBPI.Service.News
                 SequenceNo = news.SequenceNo,
                 Status = news.Status,
                 CreatedAt = news.CreatedAt,
-                DetailsCount = news.NewsDetails?.Count ?? 0
+                HasDetail = news.NewsDetail != null
             };
         }
     }

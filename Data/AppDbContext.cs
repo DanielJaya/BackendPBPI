@@ -85,12 +85,17 @@ namespace BackendPBPI.Data
                 .HasOne(n => n.User)
                 .WithMany()
                 .HasForeignKey(n => n.UserID)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.NoAction);
+
+            //Relasi One To One
+            modelBuilder.Entity<NewsDTLModel>()
+                .HasIndex(d => d.NewsHDRID)
+                .IsUnique();
 
             modelBuilder.Entity<NewsDTLModel>()
                 .HasOne(d => d.NewsHeader)
-                .WithMany(h => h.NewsDetails)
-                .HasForeignKey(d => d.NewsHDRID)
+                .WithOne(h => h.NewsDetail)
+                .HasForeignKey<NewsDTLModel>(d => d.NewsHDRID)
                 .OnDelete(DeleteBehavior.Cascade);
 
         }

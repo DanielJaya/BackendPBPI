@@ -45,7 +45,7 @@ namespace BackendPBPI.Repository.News
                 _logger.LogInformation("Mencari news dengan ID: {NewsID}", newsId);
                 return await _context.NewsHDR
                     .Include(n => n.User)
-                    .Include(n => n.NewsDetails.Where(d => d.DeletedAt == null))
+                    .Include(n => n.NewsDetail) // One-to-One
                     .FirstOrDefaultAsync(n => n.NewsID == newsId && n.DeletedAt == null);
             }
             catch (Exception ex)
@@ -62,7 +62,7 @@ namespace BackendPBPI.Repository.News
                 _logger.LogInformation("Mengambil semua news");
                 var query = _context.NewsHDR
                     .Include(n => n.User)
-                    .Include(n => n.NewsDetails.Where(d => d.DeletedAt == null))
+                    .Include(n => n.NewsDetail) // One-to-One
                     .Where(n => n.DeletedAt == null);
 
                 if (!includeInactive)
@@ -78,25 +78,6 @@ namespace BackendPBPI.Repository.News
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saat mengambil semua news");
-                throw;
-            }
-        }
-
-        public async Task<List<NewsHDRModel>> GetNewsByUserIdAsync(int userId)
-        {
-            try
-            {
-                _logger.LogInformation("Mengambil news untuk user ID: {UserID}", userId);
-                return await _context.NewsHDR
-                    .Include(n => n.User)
-                    .Include(n => n.NewsDetails.Where(d => d.DeletedAt == null))
-                    .Where(n => n.UserID == userId && n.DeletedAt == null)
-                    .OrderByDescending(n => n.CreatedAt)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saat mengambil news untuk user: {UserID}", userId);
                 throw;
             }
         }
@@ -135,10 +116,10 @@ namespace BackendPBPI.Repository.News
                 // Soft delete header
                 news.DeletedAt = DateTime.UtcNow;
 
-                // Soft delete all details
-                foreach (var detail in news.NewsDetails)
+                // Soft delete detail (One-to-One)
+                if (news.NewsDetail != null)
                 {
-                    detail.DeletedAt = DateTime.UtcNow;
+                    news.NewsDetail.DeletedAt = DateTime.UtcNow;
                 }
 
                 await _context.SaveChangesAsync();
@@ -184,7 +165,7 @@ namespace BackendPBPI.Repository.News
         }
 
         // ============================================
-        // NewsDTL Operations
+        // NewsDTL Operations (One-to-One)
         // ============================================
 
         public async Task<NewsDTLModel> CreateNewsDetailAsync(NewsDTLModel newsDetail)
@@ -205,34 +186,17 @@ namespace BackendPBPI.Repository.News
             }
         }
 
-        public async Task<NewsDTLModel> GetNewsDetailByIdAsync(int detailId)
+        public async Task<NewsDTLModel> GetNewsDetailByHeaderIdAsync(int newsHdrId)
         {
             try
             {
-                _logger.LogInformation("Mencari news detail dengan ID: {NewsDTLID}", detailId);
+                _logger.LogInformation("Mencari news detail untuk NewsHDRID: {NewsHDRID}", newsHdrId);
                 return await _context.NewsDTL
-                    .FirstOrDefaultAsync(d => d.NewsDTLID == detailId && d.DeletedAt == null);
+                    .FirstOrDefaultAsync(d => d.NewsHDRID == newsHdrId && d.DeletedAt == null);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saat mencari news detail: {NewsDTLID}", detailId);
-                throw;
-            }
-        }
-
-        public async Task<List<NewsDTLModel>> GetNewsDetailsByHeaderIdAsync(int newsHdrId)
-        {
-            try
-            {
-                _logger.LogInformation("Mengambil news details untuk NewsHDRID: {NewsHDRID}", newsHdrId);
-                return await _context.NewsDTL
-                    .Where(d => d.NewsHDRID == newsHdrId && d.DeletedAt == null)
-                    .OrderBy(d => d.NewsDTLID)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saat mengambil news details");
+                _logger.LogError(ex, "Error saat mencari news detail untuk NewsHDRID: {NewsHDRID}", newsHdrId);
                 throw;
             }
         }
@@ -260,7 +224,8 @@ namespace BackendPBPI.Repository.News
             try
             {
                 _logger.LogInformation("Menghapus news detail ID: {NewsDTLID}", detailId);
-                var detail = await GetNewsDetailByIdAsync(detailId);
+                var detail = await _context.NewsDTL
+                    .FirstOrDefaultAsync(d => d.NewsDTLID == detailId && d.DeletedAt == null);
 
                 if (detail == null)
                 {
@@ -276,29 +241,6 @@ namespace BackendPBPI.Repository.News
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saat menghapus news detail: {NewsDTLID}", detailId);
-                throw;
-            }
-        }
-
-        public async Task<bool> DeleteNewsDetailsByHeaderIdAsync(int newsHdrId)
-        {
-            try
-            {
-                _logger.LogInformation("Menghapus semua news details untuk NewsHDRID: {NewsHDRID}", newsHdrId);
-                var details = await GetNewsDetailsByHeaderIdAsync(newsHdrId);
-
-                foreach (var detail in details)
-                {
-                    detail.DeletedAt = DateTime.UtcNow;
-                }
-
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Semua news details berhasil dihapus untuk NewsHDRID: {NewsHDRID}", newsHdrId);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saat menghapus news details");
                 throw;
             }
         }
