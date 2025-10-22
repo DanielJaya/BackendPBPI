@@ -1,4 +1,5 @@
 ﻿using BackendPBPI.Models.AuthModel;
+using BackendPBPI.Models.EventsModel;
 using BackendPBPI.Models.NewsModel;
 using BackendPBPI.Models.RoleModel;
 using BackendPBPI.Models.UserModels;
@@ -22,6 +23,10 @@ namespace BackendPBPI.Data
         public DbSet<RoleUserModel> RoleUsers { get; set; }
         public DbSet<NewsHDRModel> NewsHDR { get; set; }
         public DbSet<NewsDTLModel> NewsDTL { get; set; }
+        public DbSet<EventsHDRModel> EventsHDR { get; set; }
+        public DbSet<EventsDTLModel> EventsDTL { get; set; }
+        public DbSet<EventsFTRModel> EventsFTR { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

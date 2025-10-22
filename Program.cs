@@ -2,15 +2,19 @@ using System.Text;
 using BackendPBPI.Configuration;
 using BackendPBPI.Data;
 using BackendPBPI.Interface.IRepository.Auth;
+using BackendPBPI.Interface.IRepository.Event;
 using BackendPBPI.Interface.IRepository.News;
 using BackendPBPI.Interface.IRepository.Role;
 using BackendPBPI.Interface.IService.Auth;
+using BackendPBPI.Interface.IService.Event;
 using BackendPBPI.Interface.IService.News;
 using BackendPBPI.Interface.IService.Role;
 using BackendPBPI.Models.UserModels;
 using BackendPBPI.Repositories;
+using BackendPBPI.Repository.Event;
 using BackendPBPI.Repository.News;
 using BackendPBPI.Repository.Role;
+using BackendPBPI.Service.Event;
 using BackendPBPI.Service.News;
 using BackendPBPI.Service.Role;
 using BackendPBPI.Services;
@@ -143,9 +147,13 @@ builder.Host.UseSerilog();
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IRoleService, RoleService>();
 
-
+    //News
     builder.Services.AddScoped<INewsRepository, NewsRepository>();
     builder.Services.AddScoped<INewsService, NewsService>();
+    
+    // Events
+    builder.Services.AddScoped<IEventsRepository, EventsRepository>();
+    builder.Services.AddScoped<IEventsService, EventsService>();
 
     // Configure CORS (optional - sesuaikan dengan kebutuhan)
     builder.Services.AddCors(options =>
