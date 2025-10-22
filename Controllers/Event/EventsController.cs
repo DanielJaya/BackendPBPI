@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace BackendPBPI.Controllers.Event
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     [Authorize] // Requires JWT authentication
     public class EventsController : ControllerBase
     {
@@ -28,7 +28,7 @@ namespace BackendPBPI.Controllers.Event
         /// Create a new event (Admin only)
         /// </summary>
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "1")]
         public async Task<IActionResult> CreateEvent([FromForm] CreateEventRequestDTO request)
         {
             try

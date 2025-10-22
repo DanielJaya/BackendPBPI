@@ -1,6 +1,7 @@
 ﻿using BackendPBPI.Models.AuthModel;
 using BackendPBPI.Models.EventsModel;
 using BackendPBPI.Models.NewsModel;
+using BackendPBPI.Models.RankingModel;
 using BackendPBPI.Models.RoleModel;
 using BackendPBPI.Models.UserModels;
 using Microsoft.AspNetCore.Identity;
@@ -26,6 +27,9 @@ namespace BackendPBPI.Data
         public DbSet<EventsHDRModel> EventsHDR { get; set; }
         public DbSet<EventsDTLModel> EventsDTL { get; set; }
         public DbSet<EventsFTRModel> EventsFTR { get; set; }
+        public DbSet<RankingHDRModel> RankingHDR { get; set; }
+        public DbSet<RankingDTLModel> RankingDTL { get; set; }
+        public DbSet<RankingFTRModel> RankingFTR { get; set; }
 
 
 
@@ -102,6 +106,46 @@ namespace BackendPBPI.Data
                 .WithOne(h => h.NewsDetail)
                 .HasForeignKey<NewsDTLModel>(d => d.NewsHDRID)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ============ RANKING CONFIGURATIONS ============
+
+            // Konfigurasi RankingHDR dengan User
+            modelBuilder.Entity<RankingHDRModel>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserID)
+                .OnDelete(DeleteBehavior.NoAction); // Prevent cascade delete
+
+            // Konfigurasi One-to-One: RankingHDR <-> RankingDTL
+            modelBuilder.Entity<RankingDTLModel>()
+                .HasIndex(d => d.RankingHDRID)
+                .IsUnique(); // Ensure one-to-one relationship
+
+            modelBuilder.Entity<RankingDTLModel>()
+                .HasOne(d => d.RankingHeader)
+                .WithOne(h => h.RankingDetail)
+                .HasForeignKey<RankingDTLModel>(d => d.RankingHDRID)
+                .OnDelete(DeleteBehavior.Cascade); // When HDR deleted, DTL also deleted
+
+            // Konfigurasi One-to-Many: RankingHDR <-> RankingFTR
+            modelBuilder.Entity<RankingFTRModel>()
+                .HasOne(f => f.RankingHeader)
+                .WithMany(h => h.RankingFooters)
+                .HasForeignKey(f => f.RankingHDRID)
+                .OnDelete(DeleteBehavior.Cascade); // When HDR deleted, all FTR also deleted
+
+            // Optional: Index untuk performa query
+            modelBuilder.Entity<RankingHDRModel>()
+                .HasIndex(r => r.PlayerName); // Index for search by name
+
+            modelBuilder.Entity<RankingHDRModel>()
+                .HasIndex(r => r.PlayerPoints); // Index for ranking/sorting by points
+
+            modelBuilder.Entity<RankingHDRModel>()
+                .HasIndex(r => r.DeletedAt); // Index for filtering soft-deleted records
+
+            modelBuilder.Entity<RankingFTRModel>()
+                .HasIndex(f => f.MatchDate); // Index for sorting match history by date
 
         }
     }

@@ -33,7 +33,7 @@ namespace BackendPBPI.Helper
         public static bool IsAdmin(ClaimsPrincipal user)
         {
             var role = GetUserRole(user);
-            return role?.Equals("Admin", StringComparison.OrdinalIgnoreCase) ?? false;
+            return role?.Equals("1", StringComparison.OrdinalIgnoreCase) ?? false;
         }
     }
 }

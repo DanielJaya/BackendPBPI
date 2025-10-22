@@ -4,18 +4,22 @@ using BackendPBPI.Data;
 using BackendPBPI.Interface.IRepository.Auth;
 using BackendPBPI.Interface.IRepository.Event;
 using BackendPBPI.Interface.IRepository.News;
+using BackendPBPI.Interface.IRepository.Ranking;
 using BackendPBPI.Interface.IRepository.Role;
 using BackendPBPI.Interface.IService.Auth;
 using BackendPBPI.Interface.IService.Event;
 using BackendPBPI.Interface.IService.News;
+using BackendPBPI.Interface.IService.Ranking;
 using BackendPBPI.Interface.IService.Role;
 using BackendPBPI.Models.UserModels;
 using BackendPBPI.Repositories;
 using BackendPBPI.Repository.Event;
 using BackendPBPI.Repository.News;
+using BackendPBPI.Repository.Ranking;
 using BackendPBPI.Repository.Role;
 using BackendPBPI.Service.Event;
 using BackendPBPI.Service.News;
+using BackendPBPI.Service.Ranking;
 using BackendPBPI.Service.Role;
 using BackendPBPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -147,7 +151,7 @@ builder.Host.UseSerilog();
     builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<IRoleService, RoleService>();
 
-    //News
+    // News
     builder.Services.AddScoped<INewsRepository, NewsRepository>();
     builder.Services.AddScoped<INewsService, NewsService>();
     
@@ -155,8 +159,12 @@ builder.Host.UseSerilog();
     builder.Services.AddScoped<IEventsRepository, EventsRepository>();
     builder.Services.AddScoped<IEventsService, EventsService>();
 
-    // Configure CORS (optional - sesuaikan dengan kebutuhan)
-    builder.Services.AddCors(options =>
+    // Ranking
+    builder.Services.AddScoped<IRankingRepository, RankingRepository>();
+    builder.Services.AddScoped<IRankingService, RankingService>();
+
+// Configure CORS (optional - sesuaikan dengan kebutuhan)
+builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowAll", policy =>
         {
